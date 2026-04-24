@@ -60,7 +60,11 @@ export interface SessionSnapshot {
   hand_no: number;
   level: { sb: number; bb: number; ante: number; minutes: number };
   level_index: number;
+  next_level?: { sb: number; bb: number; ante: number; minutes: number } | null;
+  hands_until_next_level?: number;
   tournament_players_alive: number;
+  hero_rank?: number;
+  prize_breakdown?: Array<{ place: number; pct: number; amount: number }>;
   icm: Array<{ seat: number; name: string; stack: number; icm_equity: number }>;
   config: {
     structure: string;

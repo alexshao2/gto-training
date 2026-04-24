@@ -4,6 +4,16 @@ import type { CreateSessionRequest } from "../types/api";
 
 const DEFAULT_PROFILES = ["tag", "lag", "fish", "nit", "gto"];
 
+const PROFILE_AVATARS: Record<string, string> = {
+  nit: "🦉",
+  rock: "🗿",
+  tag: "🦅",
+  lag: "🐯",
+  fish: "🐟",
+  maniac: "🤡",
+  gto: "🤖",
+};
+
 export const Lobby: React.FC = () => {
   const { profiles, loadProfiles, startSession, loading, error } = useSession();
   const [structure, setStructure] = useState<"turbo" | "regular">("turbo");
@@ -40,35 +50,36 @@ export const Lobby: React.FC = () => {
   return (
     <div className="lobby">
       <header className="lobby-header">
-        <h1>Poker GTO Coach</h1>
-        <p>Train MTT/cash 6-max với AI bots + HLV GTO realtime</p>
+        <h1>♠ Poker GTO Coach ♥</h1>
+        <p>Train MTT 6-max với AI bots cấp độ thực + HLV GTO realtime</p>
       </header>
 
       <section className="card-section">
-        <h3>Tournament structure</h3>
+        <h3>Cấu trúc giải</h3>
         <div className="row">
           <button
-            className={"chip " + (structure === "turbo" ? "chip-on" : "")}
+            className={"chip-btn " + (structure === "turbo" ? "active" : "")}
             onClick={() => setStructure("turbo")}
           >
-            Turbo
+            ⚡ Turbo
           </button>
           <button
-            className={"chip " + (structure === "regular" ? "chip-on" : "")}
+            className={"chip-btn " + (structure === "regular" ? "active" : "")}
             onClick={() => setStructure("regular")}
           >
-            Regular
+            🐢 Regular
           </button>
         </div>
+        <p className="hint">Turbo: blind tăng nhanh, deep stack ngắn. Regular: chậm hơn, deeper play.</p>
       </section>
 
       <section className="card-section">
-        <h3>Starting stack</h3>
+        <h3>Stack khởi đầu</h3>
         <div className="row">
           {[5000, 10000, 20000, 50000].map((s) => (
             <button
               key={s}
-              className={"chip " + (stack === s ? "chip-on" : "")}
+              className={"chip-btn " + (stack === s ? "active" : "")}
               onClick={() => setStack(s)}
             >
               {s.toLocaleString()}
@@ -78,28 +89,31 @@ export const Lobby: React.FC = () => {
       </section>
 
       <section className="card-section">
-        <h3>Số player ({nPlayers})</h3>
+        <h3>Số player tại bàn ({nPlayers})</h3>
         <input
           type="range"
           min={2}
           max={6}
           value={nPlayers}
           onChange={(e) => setNPlayers(parseInt(e.target.value, 10))}
+          className="slider"
         />
+        <p className="hint">2 = HU, 6 = full ring 6-max</p>
       </section>
 
       <section className="card-section">
         <h3>Bot profiles tại bàn</h3>
-        <p className="hint">Chọn các player type bạn muốn đối đầu (rotate quanh bàn).</p>
-        <div className="profiles">
+        <p className="hint">Chọn các loại đối thủ. Profile sẽ rotate quanh bàn.</p>
+        <div className="profile-grid">
           {Object.entries(profiles).map(([key, label]) => (
             <button
               key={key}
-              className={"profile-card " + (picked.includes(key) ? "picked" : "")}
+              className={"profile-pill " + (picked.includes(key) ? "active" : "")}
               onClick={() => togglePicked(key)}
             >
-              <strong>{key.toUpperCase()}</strong>
-              <span>{label}</span>
+              <span className="profile-avatar">{PROFILE_AVATARS[key] ?? "🎭"}</span>
+              <span className="profile-name">{key.toUpperCase()}</span>
+              <span className="profile-desc">{label}</span>
             </button>
           ))}
         </div>
@@ -107,7 +121,7 @@ export const Lobby: React.FC = () => {
 
       <section className="card-section">
         <h3>Coach realtime</h3>
-        <label className="row toggle">
+        <label className="row toggle-row">
           <input
             type="checkbox"
             checked={coachOn}
@@ -115,25 +129,21 @@ export const Lobby: React.FC = () => {
           />
           <span>Bật coach (chỉ ra sai lầm khỏi GTO)</span>
         </label>
-        <label className="row toggle">
+        <label className="row toggle-row">
           <input
             type="checkbox"
             checked={llmOn}
             onChange={(e) => setLlmOn(e.target.checked)}
             disabled={!coachOn}
           />
-          <span>Dùng LLM để giải thích sâu hơn (cần API key)</span>
+          <span>LLM giải thích sâu (Vietnamese, GTO reasoning)</span>
         </label>
       </section>
 
       {error && <div className="error-banner">{error}</div>}
 
-      <button
-        className="btn-start"
-        disabled={loading}
-        onClick={handleStart}
-      >
-        {loading ? "Đang setup..." : "Bắt đầu giải đấu"}
+      <button className="btn-start" disabled={loading} onClick={handleStart}>
+        {loading ? "Đang setup..." : "🎯 Bắt đầu giải đấu"}
       </button>
     </div>
   );
