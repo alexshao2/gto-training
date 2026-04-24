@@ -175,8 +175,16 @@ class TournamentSession:
             self.last_coach = coach_fb
             self._emit("coach", coach_fb.to_dict())
 
+        pre_street = self.state.street
         self.state.apply_action(hero_seat_local, action)
         self._emit("action", {"seat": hero_seat_local, "action": action.to_dict(), "is_hero": True})
+        post_street = self.state.street
+        if post_street != pre_street and post_street in (
+            Street.FLOP, Street.TURN, Street.RIVER, Street.SHOWDOWN
+        ):
+            await asyncio.sleep(self._street_transition_delay(post_street))
+        if self.state.street == Street.COMPLETE:
+            self._finalize_hand()
         return self.snapshot(coach_feedback=coach_fb)
 
     def _build_action(self, action_type: str, amount: int, seat: int) -> Action:
@@ -220,6 +228,17 @@ class TournamentSession:
             base *= 1.3
         return min(base, 3.5)
 
+    def _street_transition_delay(self, new_street: Street) -> float:
+        """Pause after dealing flop/turn/river so the user can see the cards land
+        and read the street banner before the next action."""
+        if new_street == Street.FLOP:
+            return self.rng.uniform(1.7, 2.2)
+        if new_street in (Street.TURN, Street.RIVER):
+            return self.rng.uniform(1.4, 1.9)
+        if new_street == Street.SHOWDOWN:
+            return self.rng.uniform(1.6, 2.0)
+        return 0.0
+
     async def _step_one_bot(self) -> bool:
         """Advance one bot action. Returns True if a bot acted, False if hero's
         turn / hand complete / no actor.
@@ -237,6 +256,7 @@ class TournamentSession:
         legal = self.state.legal_actions(seat)
         action = decide(self.state, seat, player.profile, self.rng)
         await asyncio.sleep(self._bot_think_seconds(action, legal))
+        pre_street = self.state.street
         try:
             self.state.apply_action(seat, action)
         except ValueError:
@@ -248,6 +268,14 @@ class TournamentSession:
             "action",
             {"seat": seat, "action": player.last_action.to_dict() if player.last_action else None, "is_hero": False},
         )
+        # If this action ended the betting round and dealt a new street, pause
+        # so the client gets a snapshot, animates the cards, then waits before
+        # the next bot acts on the new street.
+        post_street = self.state.street
+        if post_street != pre_street and post_street in (
+            Street.FLOP, Street.TURN, Street.RIVER, Street.SHOWDOWN
+        ):
+            await asyncio.sleep(self._street_transition_delay(post_street))
         if self.state.street == Street.COMPLETE:
             self._finalize_hand()
         return True
