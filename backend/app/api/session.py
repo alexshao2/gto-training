@@ -94,6 +94,22 @@ class TournamentSession:
         struct = STRUCTURES[self.config.structure]
         return struct[min(self.level_index, len(struct) - 1)]
 
+    def hands_until_next_level(self) -> int:
+        # Levels increment every 10 hands (see _finalize_hand).
+        return max(1, 10 - (self.hand_no % 10))
+
+    def hero_rank(self) -> int:
+        """1-based rank of hero based on chip stack among alive players."""
+        sorted_alive = sorted(self.alive_players(), key=lambda p: -p.stack)
+        for i, p in enumerate(sorted_alive):
+            if p.is_human:
+                return i + 1
+        # Hero is busted → rank = busted position from history
+        busted = [p for p in self.players if p.stack == 0 and p.is_human]
+        if busted:
+            return len(self.players)
+        return len(self.players)
+
     def alive_players(self) -> list[Player]:
         return [p for p in self.players if p.stack > 0]
 
@@ -184,39 +200,67 @@ class TournamentSession:
             return Action(ActionType.RAISE, amount=target)
         raise ValueError(f"Unknown action {action_type}")
 
+    def _bot_think_seconds(self, action: Action, legal: dict) -> float:
+        """Variable thinking time so bots feel human, not instant."""
+        base = 0.6
+        atype = action.type
+        # Snap-fold to small bets
+        if atype == ActionType.FOLD and legal.get("to_call", 0) <= legal.get("current_bet", 0) * 1.5:
+            base = self.rng.uniform(0.4, 0.9)
+        elif atype in (ActionType.BET, ActionType.RAISE):
+            base = self.rng.uniform(1.4, 2.6)
+        elif atype == ActionType.CALL and legal.get("to_call", 0) > 0:
+            base = self.rng.uniform(0.9, 1.8)
+        elif atype == ActionType.CHECK:
+            base = self.rng.uniform(0.5, 1.1)
+        elif atype == ActionType.ALL_IN:
+            base = self.rng.uniform(1.8, 3.2)
+        # Big decisions slow down
+        if self.state and self.state.pot > self.state.big_blind * 30:
+            base *= 1.3
+        return min(base, 3.5)
+
+    async def _step_one_bot(self) -> bool:
+        """Advance one bot action. Returns True if a bot acted, False if hero's
+        turn / hand complete / no actor.
+        """
+        if not self.state:
+            return False
+        if self.state.street in (Street.SHOWDOWN, Street.COMPLETE):
+            return False
+        seat = self.state.to_act_seat
+        if seat is None:
+            return False
+        player = self.state.players[seat]
+        if player.is_human or player.folded or player.all_in:
+            return False
+        legal = self.state.legal_actions(seat)
+        action = decide(self.state, seat, player.profile, self.rng)
+        await asyncio.sleep(self._bot_think_seconds(action, legal))
+        try:
+            self.state.apply_action(seat, action)
+        except ValueError:
+            if "check" in legal["actions"]:
+                self.state.apply_action(seat, Action(ActionType.CHECK))
+            else:
+                self.state.apply_action(seat, Action(ActionType.FOLD))
+        self._emit(
+            "action",
+            {"seat": seat, "action": player.last_action.to_dict() if player.last_action else None, "is_hero": False},
+        )
+        if self.state.street == Street.COMPLETE:
+            self._finalize_hand()
+        return True
+
     async def step_bots(self) -> dict:
-        """Run bot actions until it's hero's turn or hand completes."""
+        """Run bot actions until it's hero's turn or hand completes (no incremental
+        callback). HTTP path uses this; WS path uses _step_one_bot in a loop.
+        """
         if not self.state:
             return self.snapshot()
         max_iter = 200
-        while max_iter > 0 and self.state.street not in (Street.SHOWDOWN, Street.COMPLETE):
-            seat = self.state.to_act_seat
-            if seat is None:
-                break
-            player = self.state.players[seat]
-            if player.is_human:
-                break
-            if player.folded or player.all_in:
-                # Should not happen due to advance_turn, but guard
-                break
-            await asyncio.sleep(self.config.auto_bot_delay_ms / 1000)
-            action = decide(self.state, seat, player.profile, self.rng)
-            try:
-                self.state.apply_action(seat, action)
-            except ValueError:
-                # Fall back to safe action
-                legal = self.state.legal_actions(seat)
-                if "check" in legal["actions"]:
-                    self.state.apply_action(seat, Action(ActionType.CHECK))
-                else:
-                    self.state.apply_action(seat, Action(ActionType.FOLD))
-            self._emit(
-                "action",
-                {"seat": seat, "action": player.last_action.to_dict() if player.last_action else None, "is_hero": False},
-            )
+        while max_iter > 0 and await self._step_one_bot():
             max_iter -= 1
-        if self.state.street == Street.COMPLETE:
-            self._finalize_hand()
         return self.snapshot()
 
     def _finalize_hand(self) -> None:
@@ -301,12 +345,29 @@ class TournamentSession:
             for p, e in zip(alive, eq):
                 icm.append({"seat": p.seat, "name": p.name, "stack": p.stack, "icm_equity": round(e, 2)})
 
+        # Total prize pool (sum of buy-ins is implicit; payouts are pct).
+        # We expose payouts as percentages and absolute prize values
+        # (relative to a virtual 1000-unit pool for display).
+        prize_pool_units = 1000
+        prize_breakdown = [
+            {"place": i + 1, "pct": pct, "amount": int(prize_pool_units * pct / 100)}
+            for i, pct in enumerate(self.config.payouts)
+        ]
+        next_level = None
+        struct = STRUCTURES[self.config.structure]
+        if self.level_index + 1 < len(struct):
+            next_level = struct[self.level_index + 1].__dict__
+
         return {
             "session_id": self.id,
             "hand_no": self.hand_no,
             "level": self.current_level().__dict__,
             "level_index": self.level_index,
+            "next_level": next_level,
+            "hands_until_next_level": self.hands_until_next_level(),
             "tournament_players_alive": len(alive),
+            "hero_rank": self.hero_rank(),
+            "prize_breakdown": prize_breakdown,
             "icm": icm,
             "config": {
                 "structure": self.config.structure,

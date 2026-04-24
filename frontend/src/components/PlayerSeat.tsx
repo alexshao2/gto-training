@@ -6,66 +6,123 @@ interface Props {
   player: PlayerPublic;
   isToAct: boolean;
   isButton: boolean;
+  isWinner: boolean;
   position: string;
   bigBlind: number;
+  showdownReveal?: boolean;
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  fold: "Fold",
-  check: "Check",
-  call: "Call",
-  bet: "Bet",
-  raise: "Raise",
-  all_in: "All-in",
+  fold: "FOLD",
+  check: "CHECK",
+  call: "CALL",
+  bet: "BET",
+  raise: "RAISE",
+  all_in: "ALL-IN",
 };
+
+const PROFILE_AVATAR: Record<string, string> = {
+  human: "🧑",
+  nit: "🦉",
+  rock: "🗿",
+  tag: "🦅",
+  lag: "🐯",
+  fish: "🐟",
+  maniac: "🤡",
+  gto: "🤖",
+};
+
+function avatarFor(p: PlayerPublic): string {
+  if (p.is_human) return PROFILE_AVATAR.human;
+  return PROFILE_AVATAR[p.profile] ?? "🎭";
+}
 
 export const PlayerSeat: React.FC<Props> = ({
   player,
   isToAct,
   isButton,
+  isWinner,
   position,
   bigBlind,
+  showdownReveal,
 }) => {
-  const stackBB = (player.stack / Math.max(bigBlind, 1)).toFixed(0);
+  const stackBB = bigBlind > 0 ? (player.stack / bigBlind).toFixed(0) : "0";
   const dimmed = player.folded || player.stack === 0;
+  const showCards = player.cards != null;
+  const cardSize = player.is_human ? "md" : "sm";
+
   return (
     <div
       className={
         "seat" +
         (isToAct ? " seat-active" : "") +
         (dimmed ? " seat-dim" : "") +
-        (player.is_human ? " seat-hero" : "")
+        (player.is_human ? " seat-hero" : "") +
+        (isWinner ? " seat-winner" : "")
       }
     >
-      <div className="seat-header">
-        <span className="seat-name">{player.name}</span>
-        {isButton && <span className="badge badge-btn">D</span>}
-        <span className="badge badge-pos">{position}</span>
+      {showCards ? (
+        <div className="seat-cards">
+          {player.cards!.map((c, i) => (
+            <PlayingCard
+              key={i}
+              card={c}
+              size={cardSize}
+              flipping={showdownReveal && !player.is_human}
+            />
+          ))}
+        </div>
+      ) : !player.folded && player.stack > 0 ? (
+        <div className="seat-cards">
+          <PlayingCard card={null} size={cardSize} />
+          <PlayingCard card={null} size={cardSize} />
+        </div>
+      ) : null}
+
+      <div className="seat-card">
+        <div className="seat-avatar">{avatarFor(player)}</div>
+        <div className="seat-info">
+          <div className="seat-name">
+            {player.name}
+            {isButton && <span className="badge badge-btn" title="Dealer button">D</span>}
+          </div>
+          <div className="seat-pos">{position}</div>
+          <div className="seat-stack">
+            <span className="stack-amt">{player.stack.toLocaleString()}</span>
+            <span className="stack-bb">{stackBB}bb</span>
+          </div>
+        </div>
       </div>
-      <div className="seat-cards">
-        {player.cards
-          ? player.cards.map((c, i) => (
-              <PlayingCard key={i} card={c} small={!player.is_human} />
-            ))
-          : !player.folded && player.stack > 0
-          ? [<PlayingCard key="0" card={null} small />, <PlayingCard key="1" card={null} small />]
-          : null}
-      </div>
-      <div className="seat-stack">
-        <span>{player.stack.toLocaleString()}</span>
-        <span className="stack-bb">{stackBB}bb</span>
-      </div>
-      {player.bet_this_street > 0 && (
-        <div className="seat-bet">{player.bet_this_street.toLocaleString()}</div>
-      )}
-      {player.last_action && (
-        <div className="seat-action">
-          {ACTION_LABELS[player.last_action.type] ?? player.last_action.type}
-          {player.last_action.amount > 0 ? ` ${player.last_action.amount}` : ""}
+
+      {isToAct && !player.folded && (
+        <div className="seat-thinking">
+          <span className="dot" />
+          <span className="dot" />
+          <span className="dot" />
         </div>
       )}
-      {player.all_in && <div className="seat-tag">ALL-IN</div>}
+
+      {player.last_action && (
+        <div className={`seat-action act-${player.last_action.type}`}>
+          {ACTION_LABELS[player.last_action.type] ?? player.last_action.type}
+          {player.last_action.amount > 0 && player.last_action.type !== "fold" &&
+            ` ${player.last_action.amount.toLocaleString()}`}
+        </div>
+      )}
+
+      {player.all_in && <div className="seat-tag seat-tag-allin">ALL-IN</div>}
       {player.folded && <div className="seat-tag seat-tag-fold">FOLDED</div>}
+
+      {player.bet_this_street > 0 && (
+        <div className="seat-bet-chips">
+          <div className="bet-chip" />
+          <div className="bet-amount">{player.bet_this_street.toLocaleString()}</div>
+        </div>
+      )}
+
+      {isWinner && (
+        <div className="seat-winner-badge">WINNER 🏆</div>
+      )}
     </div>
   );
 };

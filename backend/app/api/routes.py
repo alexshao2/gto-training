@@ -1,7 +1,6 @@
 """HTTP + WebSocket routes."""
 from __future__ import annotations
 
-import asyncio
 import json
 from typing import Any
 
@@ -85,14 +84,7 @@ async def submit_action(session_id: str, req: HeroActionRequest) -> dict[str, An
             snap = await session.submit_hero_action(req.action, req.amount)
         except (RuntimeError, ValueError) as e:
             raise HTTPException(400, str(e))
-        # Drive bots until hero turn or completion
         snap = await session.step_bots()
-        if session.state and session.state.street.value == "complete":
-            # Auto-deal next hand if tournament still alive
-            alive = [p for p in session.players if p.stack > 0]
-            if len(alive) >= 2:
-                session.start_new_hand()
-                snap = await session.step_bots()
     return snap
 
 
@@ -162,23 +154,34 @@ async def ws_endpoint(websocket: WebSocket, session_id: str) -> None:
                         snap = await session.submit_hero_action(
                             msg.get("action", "fold"), int(msg.get("amount", 0))
                         )
-                        await manager.broadcast(session_id, {"type": "snapshot", "data": snap})
-                        snap = await session.step_bots()
-                        await manager.broadcast(session_id, {"type": "snapshot", "data": snap})
-                        if session.state and session.state.street.value == "complete":
-                            alive = [p for p in session.players if p.stack > 0]
-                            if len(alive) >= 2:
-                                await asyncio.sleep(1.0)
-                                session.start_new_hand()
-                                snap = await session.step_bots()
-                                await manager.broadcast(session_id, {"type": "snapshot", "data": snap})
+                        await manager.broadcast(
+                            session_id, {"type": "snapshot", "data": snap}
+                        )
+                        max_iter = 200
+                        while max_iter > 0 and await session._step_one_bot():
+                            max_iter -= 1
+                            await manager.broadcast(
+                                session_id,
+                                {"type": "snapshot", "data": session.snapshot()},
+                            )
                     except Exception as e:
-                        await websocket.send_text(json.dumps({"type": "error", "error": str(e)}))
+                        await websocket.send_text(
+                            json.dumps({"type": "error", "error": str(e)})
+                        )
             elif msg.get("type") == "next_hand":
                 async with session.lock:
                     session.start_new_hand()
-                    snap = await session.step_bots()
-                    await manager.broadcast(session_id, {"type": "snapshot", "data": snap})
+                    await manager.broadcast(
+                        session_id,
+                        {"type": "snapshot", "data": session.snapshot()},
+                    )
+                    max_iter = 200
+                    while max_iter > 0 and await session._step_one_bot():
+                        max_iter -= 1
+                        await manager.broadcast(
+                            session_id,
+                            {"type": "snapshot", "data": session.snapshot()},
+                        )
             elif msg.get("type") == "ping":
                 await websocket.send_text(json.dumps({"type": "pong"}))
     except WebSocketDisconnect:
