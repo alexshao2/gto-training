@@ -91,9 +91,11 @@ async def _ask_openai(
 ) -> str | None:
     api_key = os.environ["OPENAI_API_KEY"]
     model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-    async with httpx.AsyncClient(timeout=20.0) as client:
+    base_url = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+    url = f"{base_url}/chat/completions"
+    async with httpx.AsyncClient(timeout=30.0) as client:
         r = await client.post(
-            "https://api.openai.com/v1/chat/completions",
+            url,
             headers={
                 "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
@@ -105,9 +107,69 @@ async def _ask_openai(
                     {"role": "user", "content": _user_prompt(feedback, state_summary, combo)},
                 ],
                 "temperature": 0.4,
-                "max_tokens": 400,
+                "max_tokens": 1500,
+                "stream": False,
             },
         )
         r.raise_for_status()
-        data = r.json()
-        return data["choices"][0]["message"]["content"].strip() if data.get("choices") else None
+        data = _parse_openai_response(r.text)
+        if not data or not data.get("choices"):
+            return None
+        msg = data["choices"][0].get("message", {})
+        content = (msg.get("content") or "").strip()
+        if content:
+            return content
+        # Some reasoning-focused OpenAI-compatible providers route the answer
+        # into `message.reasoning` (or `reasoning_details`) instead of `content`.
+        reasoning = (msg.get("reasoning") or "").strip()
+        if reasoning:
+            return reasoning
+        return None
+
+
+def _parse_openai_response(text: str) -> dict | None:
+    """Parse an OpenAI-compatible chat completion response.
+
+    Handles both plain JSON (standard) and SSE-style streams that some proxies
+    send back even for non-streaming requests (chunks prefixed with `data: `,
+    terminated by `data: [DONE]`).
+    """
+    text = text.strip()
+    if not text:
+        return None
+    # Plain JSON object first.
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    # SSE: find lines starting with `data: {` and parse the last non-`[DONE]` one.
+    last: dict | None = None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line.startswith("data:"):
+            continue
+        payload = line[5:].strip()
+        if payload == "[DONE]" or not payload:
+            continue
+        try:
+            last = json.loads(payload)
+        except json.JSONDecodeError:
+            continue
+    if last is not None:
+        return last
+    # Fallback: extract the first balanced JSON object.
+    depth = 0
+    start = -1
+    for i, ch in enumerate(text):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0 and start >= 0:
+                try:
+                    return json.loads(text[start : i + 1])
+                except json.JSONDecodeError:
+                    start = -1
+    return None

@@ -7,6 +7,9 @@ primary_region = "iad"
 
 [env]
   PORT = "8080"
+  # Set non-secret defaults here. Secrets (API keys) are managed via
+  # `flyctl secrets set OPENAI_API_KEY=... OPENAI_BASE_URL=... OPENAI_MODEL=...`
+  # See README for details.
 
 [http_service]
   internal_port = 8080

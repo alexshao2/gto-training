@@ -74,6 +74,7 @@ Optional environment variables:
 - `ANTHROPIC_API_KEY` (recommended) hoặc `OPENAI_API_KEY` — để bật LLM coach.
 - `ANTHROPIC_MODEL` (default `claude-3-5-haiku-20241022`).
 - `OPENAI_MODEL` (default `gpt-4o-mini`).
+- `OPENAI_BASE_URL` (default `https://api.openai.com/v1`) — đổi để dùng custom OpenAI-compatible endpoint (ví dụ proxy nội bộ).
 - `CORS_ORIGINS` — danh sách origin phân tách bằng dấu phẩy.
 
 ### Frontend
