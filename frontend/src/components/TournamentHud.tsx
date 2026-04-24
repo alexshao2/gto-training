@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import type { SessionSnapshot } from "../types/api";
+import { isMuted, toggleMuted, sfx } from "../utils/sound";
 
 interface Props {
   snapshot: SessionSnapshot;
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export const TournamentHud: React.FC<Props> = ({ snapshot, onExit }) => {
+  const [muted, setMuted] = useState<boolean>(isMuted());
   const lvl = snapshot.level;
   const next = snapshot.next_level;
   const handsToNext = snapshot.hands_until_next_level ?? 0;
@@ -25,7 +27,7 @@ export const TournamentHud: React.FC<Props> = ({ snapshot, onExit }) => {
       <div className="hud-section hud-tourney">
         <div className="hud-row hud-row-strong">
           <span className="hud-pill hud-pill-rank">#{heroRank}/{totalPlayers}</span>
-          <span className="hud-pill hud-pill-alive">{alive} còn lại</span>
+          <span className="hud-pill hud-pill-alive">{alive} còn</span>
         </div>
         <div className="hud-row">
           <span className="hud-label">Hand</span>
@@ -45,7 +47,7 @@ export const TournamentHud: React.FC<Props> = ({ snapshot, onExit }) => {
           {next ? (
             <span className="hud-next">
               Next: {next.sb}/{next.bb}
-              {next.ante > 0 && `+${next.ante}`} (sau {handsToNext} hands)
+              {next.ante > 0 && `+${next.ante}`} (sau {handsToNext}h)
             </span>
           ) : (
             <span className="hud-next">Final blind level</span>
@@ -71,9 +73,23 @@ export const TournamentHud: React.FC<Props> = ({ snapshot, onExit }) => {
         </div>
       </div>
 
-      <button className="exit-btn" onClick={onExit} title="Về lobby">
-        ✕
-      </button>
+      <div className="hud-actions">
+        <button
+          className={"icon-btn" + (muted ? "" : " is-on")}
+          onClick={() => {
+            const m = toggleMuted();
+            setMuted(m);
+            if (!m) sfx.buttonClick();
+          }}
+          title={muted ? "Bật âm thanh" : "Tắt âm thanh"}
+          aria-label={muted ? "Unmute" : "Mute"}
+        >
+          {muted ? "🔇" : "🔊"}
+        </button>
+        <button className="icon-btn exit-btn" onClick={onExit} title="Về lobby" aria-label="Exit">
+          ✕
+        </button>
+      </div>
     </div>
   );
 };

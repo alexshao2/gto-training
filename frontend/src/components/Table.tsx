@@ -7,6 +7,7 @@ import { CoachToast } from "./CoachToast";
 import { TournamentHud } from "./TournamentHud";
 import { useSession } from "../store/session";
 import { hapticNotify } from "../utils/telegram";
+import { sfx } from "../utils/sound";
 
 interface Props {
   snapshot: SessionSnapshot;
@@ -49,8 +50,83 @@ export const Table: React.FC<Props> = ({ snapshot }) => {
       lastCoachTsRef.current = sig;
       setShowCoach(true);
       hapticNotify("warning");
+      sfx.warn();
     }
   }, [snapshot.last_coach]);
+
+  // Auto-dismiss coach toast when a new hand starts (so we don't show stale advice)
+  const lastSeenHandRef = useRef<number>(snapshot.hand_no);
+  useEffect(() => {
+    if (snapshot.hand_no !== lastSeenHandRef.current) {
+      lastSeenHandRef.current = snapshot.hand_no;
+      setShowCoach(false);
+    }
+  }, [snapshot.hand_no]);
+
+  // Bot action sound: detect last_action change on non-hero seats
+  const lastActionsRef = useRef<Record<number, string>>({});
+  useEffect(() => {
+    if (!state) return;
+    for (const p of state.players) {
+      const sig = p.last_action ? `${p.last_action.type}:${p.last_action.amount}` : "";
+      const prev = lastActionsRef.current[p.seat];
+      if (sig && sig !== prev) {
+        lastActionsRef.current[p.seat] = sig;
+        if (!p.is_human && prev != null) {
+          // Skip first-time set (initial render) but always for subsequent changes
+          switch (p.last_action!.type) {
+            case "fold": sfx.fold(); break;
+            case "check": sfx.check(); break;
+            case "call": sfx.chipSlide(); break;
+            case "bet":
+            case "raise": sfx.chipClink(); break;
+            case "all_in": sfx.allIn(); break;
+          }
+        }
+      }
+    }
+  }, [state]);
+
+  // Board reveal sound: detect new community card
+  const lastBoardLenRef = useRef<number>(0);
+  useEffect(() => {
+    if (!state) {
+      lastBoardLenRef.current = 0;
+      return;
+    }
+    const len = state.board.length;
+    if (len > lastBoardLenRef.current) {
+      sfx.cardDeal();
+      // Subtle stagger for multi-card reveal (flop)
+      const newCount = len - lastBoardLenRef.current;
+      if (newCount > 1) {
+        for (let i = 1; i < newCount; i++) {
+          window.setTimeout(() => sfx.cardDeal(), i * 110);
+        }
+      }
+    }
+    lastBoardLenRef.current = len;
+  }, [state]);
+
+  // Hand complete: win/lose sound based on hero's seat
+  const lastHandRef = useRef<number>(0);
+  useEffect(() => {
+    if (!state || !snapshot.hand_complete) return;
+    if (snapshot.hand_no === lastHandRef.current) return;
+    lastHandRef.current = snapshot.hand_no;
+    const heroSeat = snapshot.config.hero_seat;
+    const heroWon = state.winners.some((w) => w.seat === heroSeat);
+    if (heroWon) {
+      sfx.win();
+      hapticNotify("success");
+    } else {
+      // Only "lose" sound if hero was in the hand (not folded earlier and not bust)
+      const hero = state.players.find((p) => p.seat === heroSeat);
+      if (hero && !hero.folded && hero.stack > 0) {
+        sfx.lose();
+      }
+    }
+  }, [snapshot.hand_complete, snapshot.hand_no, state, snapshot.config.hero_seat]);
 
   // Auto-deal next hand a few seconds after hand_complete (so user can see showdown)
   const autoNextRef = useRef<number | null>(null);
@@ -58,6 +134,7 @@ export const Table: React.FC<Props> = ({ snapshot }) => {
     if (snapshot.hand_complete && !snapshot.tournament_over) {
       if (autoNextRef.current) window.clearTimeout(autoNextRef.current);
       autoNextRef.current = window.setTimeout(() => {
+        sfx.cardDeal();
         newHand();
       }, 4500);
     }

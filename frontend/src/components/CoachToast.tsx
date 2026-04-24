@@ -7,6 +7,20 @@ interface Props {
   onClose: () => void;
 }
 
+const SEV_ICON: Record<string, string> = {
+  blunder: "✗",
+  major: "⚠",
+  minor: "⚡",
+  ok: "✓",
+};
+
+const SEV_LABEL_VI: Record<string, string> = {
+  blunder: "BLUNDER",
+  major: "SAI LẦM LỚN",
+  minor: "LEAK NHỎ",
+  ok: "ĐÚNG",
+};
+
 export const CoachToast: React.FC<Props> = ({ feedback, visible, onClose }) => {
   const [expanded, setExpanded] = useState(false);
 
@@ -15,22 +29,27 @@ export const CoachToast: React.FC<Props> = ({ feedback, visible, onClose }) => {
   }, [visible]);
 
   if (!feedback || !visible) return null;
+  const sev = feedback.severity ?? "minor";
   const sevClass =
-    feedback.severity === "blunder"
+    sev === "blunder"
       ? "coach-blunder"
-      : feedback.severity === "major"
+      : sev === "major"
       ? "coach-major"
-      : feedback.severity === "minor"
+      : sev === "minor"
       ? "coach-minor"
       : "coach-ok";
 
   return (
-    <div className={`coach-toast ${sevClass}`}>
+    <div className={`coach-toast ${sevClass}`} role="alert">
       <div className="coach-toast-header">
         <div className="coach-toast-icon">
-          {feedback.is_mistake ? "⚠️" : "✓"}
+          <span aria-hidden>{SEV_ICON[sev] ?? "•"}</span>
         </div>
         <div className="coach-toast-title">
+          <div className="coach-toast-meta">
+            <span className="coach-toast-brand">🎓 GTO COACH</span>
+            <span className={`coach-toast-sev sev-${sev}`}>{SEV_LABEL_VI[sev] ?? sev}</span>
+          </div>
           <div className="coach-toast-headline">{feedback.headline}</div>
           {feedback.correct_action && (
             <div className="coach-toast-correct">
@@ -39,7 +58,7 @@ export const CoachToast: React.FC<Props> = ({ feedback, visible, onClose }) => {
             </div>
           )}
         </div>
-        <button className="coach-toast-close" onClick={onClose} title="Đóng">
+        <button className="coach-toast-close" onClick={onClose} title="Đóng" aria-label="Close">
           ✕
         </button>
       </div>
