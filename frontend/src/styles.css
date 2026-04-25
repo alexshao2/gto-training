@@ -695,20 +695,27 @@ input, select { font-family: inherit; }
   display: inline-block;
 }
 .card-deal-in {
-  animation: card-deal-in 540ms cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
+  animation: card-deal-in 620ms cubic-bezier(0.18, 0.89, 0.32, 1.28) both;
   transform-origin: center center;
+  transform-style: preserve-3d;
+  perspective: 600px;
 }
 @keyframes card-deal-in {
   0% {
     opacity: 0;
-    transform: translate(0, -90px) rotate(-22deg) scale(0.5);
+    transform: translate(-40px, -120px) rotateX(80deg) rotateY(180deg) scale(0.5);
   }
-  60% {
+  35% {
     opacity: 1;
+    transform: translate(-10px, -40px) rotateX(40deg) rotateY(120deg) scale(0.85);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(0, 4px) rotateX(0deg) rotateY(0deg) scale(1.06);
   }
   100% {
     opacity: 1;
-    transform: translate(0, 0) rotate(0deg) scale(1);
+    transform: translate(0, 0) rotateX(0deg) rotateY(0deg) scale(1);
   }
 }
 
@@ -1034,15 +1041,25 @@ input, select { font-family: inherit; }
 .seat-dim { opacity: 0.5; filter: grayscale(0.4); }
 
 .seat-winner .seat-card {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.28) 0%, rgba(20, 24, 36, 0.85) 100%);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.32) 0%, rgba(20, 24, 36, 0.85) 100%);
   border-color: var(--success);
-  box-shadow: var(--glow-success), var(--shadow-md);
+  box-shadow:
+    var(--glow-success),
+    0 0 36px rgba(16, 185, 129, 0.6),
+    0 0 72px rgba(16, 185, 129, 0.35),
+    var(--shadow-md);
   animation: winner-glow 1.6s ease-in-out infinite;
+}
+.seat-winner .seat-avatar {
+  border-color: var(--success);
+  box-shadow:
+    0 0 24px rgba(16, 185, 129, 0.85),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6);
 }
 
 @keyframes winner-glow {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.04); }
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.06); filter: brightness(1.15); }
 }
 
 .seat-avatar {
@@ -1421,6 +1438,40 @@ input, select { font-family: inherit; }
   white-space: nowrap;
 }
 
+/* Phantom chip that animates from a seat position to the pot center when
+   the street ends. Positioned absolutely inside .felt-inner. */
+.chip-flyer {
+  position: absolute;
+  left: var(--from-x, 50%);
+  top: var(--from-y, 50%);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 5;
+  pointer-events: none;
+  animation: chip-fly-to-pot 700ms cubic-bezier(0.55, 0.05, 0.45, 0.95) forwards;
+}
+@keyframes chip-fly-to-pot {
+  0% {
+    left: var(--from-x);
+    top: var(--from-y);
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  100% {
+    left: 50%;
+    top: 44%;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.55);
+  }
+}
+
 .seat-winner-badge {
   position: absolute;
   top: -28px;
@@ -1497,23 +1548,26 @@ input, select { font-family: inherit; }
 
 .btn {
   position: relative;
-  border: none;
-  padding: 12px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  padding: 14px 12px;
   border-radius: var(--r-md);
   font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 1.1px;
+  letter-spacing: 1.4px;
   color: #fff;
   text-transform: uppercase;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  gap: 2px;
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25);
   transition: transform 0.1s, filter 0.15s, box-shadow 0.15s;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.55);
   overflow: hidden;
 }
 
@@ -1521,19 +1575,50 @@ input, select { font-family: inherit; }
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.12) 100%);
   pointer-events: none;
+  border-radius: inherit;
 }
 
-.btn:hover { filter: brightness(1.08); transform: translateY(-1px); }
-.btn:active { transform: translateY(1px); filter: brightness(0.95); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; filter: none; }
+.btn:hover { filter: brightness(1.10); transform: translateY(-1px); box-shadow: 0 8px 18px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4); }
+.btn:active { transform: translateY(1px); filter: brightness(0.92); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; filter: none; }
 
-.btn-fold { background: var(--grad-fold); color: var(--text-1); }
+/* FOLD = quiet grey, low temptation */
+.btn-fold {
+  background: var(--grad-fold);
+  color: var(--text-2);
+  border-color: rgba(0, 0, 0, 0.55);
+}
 .btn-check { background: var(--grad-check); }
 .btn-call { background: var(--grad-call); }
-.btn-raise { background: var(--grad-raise); }
-.btn-allin { background: var(--grad-allin); color: #1a1206; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3); }
+.btn-raise {
+  background: var(--grad-raise);
+  /* deeper red gradient already; add inner glow to make it pop */
+  box-shadow:
+    0 6px 16px rgba(220, 38, 38, 0.45),
+    0 6px 14px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+}
+/* JAM = the most aggressive option, full gold treatment */
+.btn-allin {
+  background: var(--grad-allin);
+  color: #1a1206;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+  border-color: var(--gold-4);
+  box-shadow:
+    0 0 0 1px var(--gold-3),
+    0 6px 18px rgba(245, 158, 11, 0.5),
+    0 6px 14px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  animation: btn-allin-glow 2.4s ease-in-out infinite;
+}
+@keyframes btn-allin-glow {
+  0%, 100% { box-shadow: 0 0 0 1px var(--gold-3), 0 6px 18px rgba(245, 158, 11, 0.5), 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(0, 0, 0, 0.2); }
+  50% { box-shadow: 0 0 0 1px var(--gold-1), 0 6px 26px rgba(245, 158, 11, 0.75), 0 6px 14px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -2px 0 rgba(0, 0, 0, 0.2); }
+}
 
 .btn-sub {
   font-family: var(--font-mono);
