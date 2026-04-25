@@ -70,6 +70,7 @@ def create_app() -> FastAPI:
             "has_openai_key": bool(os.environ.get("OPENAI_API_KEY")),
             "openai_base_url_set": bool(os.environ.get("OPENAI_BASE_URL")),
             "openai_model_set": bool(os.environ.get("OPENAI_MODEL")),
+            "tts_model_set": bool(os.environ.get("TTS_MODEL")),
         }
 
     app.include_router(router, prefix="/api")

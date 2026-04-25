@@ -5,9 +5,11 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from ..bots.profiles import PROFILE_LABELS
+from ..coach.tts import get_audio, kick_off_synthesis, synthesize
 from .session import (
     SESSIONS,
     TournamentConfig,
@@ -103,6 +105,50 @@ async def next_hand(session_id: str) -> dict[str, Any]:
 async def delete_session(session_id: str) -> dict[str, str]:
     SESSIONS.pop(session_id, None)
     return {"status": "deleted"}
+
+
+# ---- Text-to-speech ----
+class TTSRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000)
+
+
+@router.get("/tts/{audio_id}")
+async def get_tts(audio_id: str) -> Response:
+    """Stream the MP3 produced for `audio_id`. Long-polls if synth still running."""
+    data = await get_audio(audio_id)
+    if data is None:
+        raise HTTPException(404, "Audio not ready or unknown")
+    return Response(
+        content=data,
+        media_type="audio/mpeg",
+        headers={
+            "Cache-Control": "public, max-age=3600, immutable",
+            "Content-Length": str(len(data)),
+        },
+    )
+
+
+@router.post("/tts")
+async def post_tts(req: TTSRequest) -> Response:
+    """Synthesize arbitrary text on demand (e.g. user replays full detail)."""
+    try:
+        data = await synthesize(req.text)
+    except RuntimeError as e:
+        raise HTTPException(503, str(e))
+    except Exception as e:  # noqa: BLE001 - surface upstream error
+        raise HTTPException(502, f"TTS upstream error: {type(e).__name__}")
+    return Response(
+        content=data,
+        media_type="audio/mpeg",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@router.post("/tts/prepare")
+async def prepare_tts(req: TTSRequest) -> dict[str, str | None]:
+    """Pre-generate audio and return its `audio_id` so the client can fetch via GET."""
+    audio_id = await kick_off_synthesis(req.text)
+    return {"audio_id": audio_id}
 
 
 # ---- WebSocket ----

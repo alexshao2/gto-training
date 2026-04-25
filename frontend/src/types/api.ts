@@ -53,6 +53,7 @@ export interface CoachFeedback {
   correct_action: string | null;
   correct_size_bb: number | null;
   metrics: Record<string, unknown>;
+  audio_url?: string | null;
 }
 
 export interface SessionSnapshot {

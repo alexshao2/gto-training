@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSession } from "../store/session";
 import type { CreateSessionRequest } from "../types/api";
+import { isVoiceEnabled, setVoiceEnabled } from "../utils/voice";
 
 const DEFAULT_PROFILES = ["tag", "lag", "fish", "nit", "gto"];
 
@@ -22,6 +23,7 @@ export const Lobby: React.FC = () => {
   const [picked, setPicked] = useState<string[]>(DEFAULT_PROFILES);
   const [coachOn, setCoachOn] = useState(true);
   const [llmOn, setLlmOn] = useState(true);
+  const [voiceOn, setVoiceOn] = useState(isVoiceEnabled());
 
   useEffect(() => {
     loadProfiles();
@@ -137,6 +139,18 @@ export const Lobby: React.FC = () => {
             disabled={!coachOn}
           />
           <span>LLM giải thích sâu (Vietnamese, GTO reasoning)</span>
+        </label>
+        <label className="row toggle-row">
+          <input
+            type="checkbox"
+            checked={voiceOn}
+            onChange={(e) => {
+              setVoiceOn(e.target.checked);
+              setVoiceEnabled(e.target.checked);
+            }}
+            disabled={!coachOn}
+          />
+          <span>🔊 Voice coach (đọc feedback bằng tiếng Việt)</span>
         </label>
       </section>
 

@@ -1553,6 +1553,46 @@ input, select { font-family: inherit; }
 
 .coach-toast-close:hover { color: var(--text-1); background: var(--bg-elev2); }
 
+.coach-toast-voice {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--gold-2);
+  font-size: 14px;
+  padding: 4px 9px;
+  margin: -4px 6px 0 0;
+  border-radius: 999px;
+  transition: all 0.15s;
+}
+
+.coach-toast-voice:hover { background: var(--bg-elev2); color: var(--gold-1); }
+
+.coach-toast-voice.playing {
+  background: var(--gold-3);
+  color: #1a1206;
+  border-color: var(--gold-2);
+  animation: voice-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(218, 165, 32, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(218, 165, 32, 0); }
+}
+
+.coach-toast-detail-voice {
+  margin-top: 8px;
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: var(--gold-2);
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.coach-toast-detail-voice:hover { background: var(--bg-elev2); color: var(--gold-1); }
+
 .coach-toast-expand {
   margin-top: 8px;
   background: transparent;

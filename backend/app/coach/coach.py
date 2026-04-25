@@ -38,6 +38,7 @@ class CoachFeedback:
     correct_action: str | None = None  # "fold"/"call"/"raise"/"check"/"bet"
     correct_size_bb: float | None = None
     metrics: dict = field(default_factory=dict)
+    audio_url: str | None = None  # GET path returning MP3 (e.g. /api/tts/<id>)
 
     def to_dict(self) -> dict:
         return {
@@ -48,6 +49,7 @@ class CoachFeedback:
             "correct_action": self.correct_action,
             "correct_size_bb": self.correct_size_bb,
             "metrics": self.metrics,
+            "audio_url": self.audio_url,
         }
 
 
