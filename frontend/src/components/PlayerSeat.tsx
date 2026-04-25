@@ -83,7 +83,7 @@ export const PlayerSeat: React.FC<Props> = ({
   const stackBB = bigBlind > 0 ? (player.stack / bigBlind).toFixed(0) : "0";
   const dimmed = player.folded || player.stack === 0;
   const showCards = player.cards != null;
-  const cardSize = player.is_human ? "md" : "sm";
+  const cardSize = player.is_human ? "lg" : "sm";
 
   return (
     <div
