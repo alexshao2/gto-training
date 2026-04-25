@@ -11,16 +11,21 @@
   --bg-elev2: #181c28;
   --bg-elev3: #1f2433;
 
-  /* Felt */
-  --felt-1: #1a8b46;
-  --felt-2: #15803d;
-  --felt-3: #0e3d22;
-  --felt-4: #062014;
+  /* Felt — midnight blue casino cloth */
+  --felt-1: #1e3a8a;
+  --felt-2: #1e40af;
+  --felt-3: #0a1f4a;
+  --felt-4: #03081f;
 
-  /* Wood / rim */
-  --wood-1: #5a3a1c;
-  --wood-2: #3a2412;
-  --wood-3: #1f1208;
+  /* Rail — deep crimson lacquer with gold pinstripe */
+  --rail-1: #7f1d1d;
+  --rail-2: #4c0d12;
+  --rail-3: #1a0408;
+
+  /* Wood / rim (legacy alias kept for any leftover usages) */
+  --wood-1: var(--rail-1);
+  --wood-2: var(--rail-2);
+  --wood-3: var(--rail-3);
 
   /* Gold accents */
   --gold-1: #fde58a;
@@ -52,9 +57,10 @@
 
   /* Gradients */
   --grad-felt:
-    radial-gradient(ellipse 65% 55% at 50% 32%, rgba(255, 255, 255, 0.08) 0%, transparent 70%),
-    radial-gradient(ellipse 110% 80% at 50% 38%, var(--felt-1) 0%, var(--felt-2) 30%, var(--felt-3) 70%, var(--felt-4) 100%);
-  --grad-wood: linear-gradient(180deg, var(--wood-1) 0%, var(--wood-2) 50%, var(--wood-3) 100%);
+    radial-gradient(ellipse 65% 55% at 50% 32%, rgba(255, 255, 255, 0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 120% 90% at 50% 42%, var(--felt-1) 0%, var(--felt-2) 30%, var(--felt-3) 70%, var(--felt-4) 100%);
+  --grad-rail: linear-gradient(180deg, var(--rail-1) 0%, var(--rail-2) 60%, var(--rail-3) 100%);
+  --grad-wood: var(--grad-rail);
   --grad-gold: linear-gradient(180deg, var(--gold-1) 0%, var(--gold-2) 30%, var(--gold-3) 60%, var(--gold-4) 100%);
   --grad-gold-shine: linear-gradient(135deg, var(--gold-1) 0%, var(--gold-3) 50%, var(--gold-4) 100%);
   --grad-fold: linear-gradient(180deg, #475569 0%, #334155 50%, #1e293b 100%);
@@ -567,16 +573,24 @@ input, select { font-family: inherit; }
    FELT / TABLE
    ========================================================= */
 
+/* Outer table = lacquered red rail. Pill / oval shape so seats wrap around
+   the table contour instead of sitting on a rectangle. */
 .felt {
   position: relative;
   margin: 10px 8px 4px;
-  padding: 10px 8px;
-  border-radius: var(--r-2xl);
-  background: var(--grad-wood);
+  padding: 12px 12px;
+  /* 50% / 30% gives a flat-topped racetrack oval; falls back gracefully on
+     narrow viewports because the inner uses the same radius. */
+  border-radius: 48% / 22%;
+  background: var(--grad-rail);
   box-shadow:
     var(--shadow-lg),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.6);
+    /* gold pinstripe on the outer rail */
+    inset 0 0 0 1px rgba(212, 175, 55, 0.55),
+    inset 0 0 0 4px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 5px rgba(212, 175, 55, 0.30),
+    inset 0 2px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.7);
   /* Grow to fill the available vertical space between HUD and action bar */
   flex: 1 1 auto;
   min-height: 0;
@@ -584,33 +598,38 @@ input, select { font-family: inherit; }
 }
 
 .felt::before {
+  /* Subtle highlight along the top of the rail — simulates lacquer sheen */
   content: "";
   position: absolute;
-  inset: 4px;
-  border-radius: calc(var(--r-2xl) - 2px);
-  background: linear-gradient(180deg, rgba(212, 175, 55, 0.15) 0%, transparent 30%, transparent 70%, rgba(0, 0, 0, 0.3) 100%);
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 80% 18% at 50% 0%, rgba(255, 255, 255, 0.18), transparent 70%),
+    radial-gradient(ellipse 70% 14% at 50% 100%, rgba(0, 0, 0, 0.55), transparent 70%);
   pointer-events: none;
-  border: 1px solid rgba(212, 175, 55, 0.25);
 }
 
 .felt-rim {
   display: none; /* now combined into .felt */
 }
 
+/* Inner = the actual felt cloth. Also oval; sits inside the rail. */
 .felt-inner {
   position: relative;
-  border-radius: var(--r-2xl);
+  border-radius: 47% / 22%;
   background: var(--grad-felt);
-  box-shadow: var(--shadow-inset-felt);
+  box-shadow:
+    var(--shadow-inset-felt),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 2px rgba(212, 175, 55, 0.35);
   overflow: visible;
   flex: 1 1 auto;
   min-height: 380px;
   max-width: 100%;
   width: 100%;
-  /* SVG noise for linen texture */
   background-image:
-    radial-gradient(ellipse 65% 55% at 50% 38%, rgba(255, 255, 255, 0.08) 0%, transparent 70%),
-    radial-gradient(ellipse 110% 80% at 50% 44%, var(--felt-1) 0%, var(--felt-2) 30%, var(--felt-3) 70%, var(--felt-4) 100%);
+    radial-gradient(ellipse 65% 55% at 50% 38%, rgba(255, 255, 255, 0.10) 0%, transparent 70%),
+    radial-gradient(ellipse 120% 90% at 50% 44%, var(--felt-1) 0%, var(--felt-2) 30%, var(--felt-3) 72%, var(--felt-4) 100%);
 }
 
 /* Brand watermark center */
