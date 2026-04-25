@@ -39,6 +39,12 @@ function avatarFor(p: PlayerPublic): string {
   return PROFILE_AVATAR[p.profile] ?? "🎭";
 }
 
+// Strip the profile suffix from bot names (e.g. "Bot-1 (tag)" -> "Bot-1") so the
+// seat label stays clean. The profile is already conveyed by the avatar emoji.
+function cleanName(raw: string): string {
+  return raw.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}
+
 function Confetti() {
   // Pre-compute particles once per mount
   const particles = useMemo(() => {
@@ -123,18 +129,17 @@ export const PlayerSeat: React.FC<Props> = ({
               </svg>
             </div>
           )}
+          {isButton && <span className="dealer-button" title="Dealer button">D</span>}
         </div>
         <div className="seat-info">
-          <div className="seat-name">
-            {player.name}
-            {isButton && <span className="badge badge-btn" title="Dealer button">D</span>}
-          </div>
-          <div className="seat-pos">{position}</div>
-          <div className="seat-stack">
-            <span className="stack-amt">{player.stack.toLocaleString()}</span>
-            <span className="stack-bb">{stackBB}bb</span>
-          </div>
+          <div className="seat-name">{cleanName(player.name)}</div>
+          <span className="pos-pill">{position}</span>
         </div>
+      </div>
+
+      <div className="seat-stack-pill">
+        <span className="stack-amt">{player.stack.toLocaleString()}</span>
+        <span className="stack-bb">{stackBB}bb</span>
       </div>
 
       {isToAct && !player.folded && (

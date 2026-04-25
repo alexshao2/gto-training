@@ -198,6 +198,44 @@ export const Table: React.FC<Props> = ({ snapshot }) => {
     return start;
   }, [boardLen]);
 
+  // Chip-fly-to-pot: when the street advances, every player's bet_this_street
+  // resets to 0. We capture the previous bets and render phantom chips that
+  // animate from the seat position to the pot center.
+  const prevBetsRef = useRef<Record<number, number>>({});
+  const [flyingChips, setFlyingChips] = useState<
+    { id: string; fromX: number; fromY: number; amount: number }[]
+  >([]);
+  useEffect(() => {
+    if (!state) return;
+    const tableN = state.players.length;
+    const seatPositions = OVAL_POSITIONS[tableN] ?? OVAL_POSITIONS[6];
+    const heroSeat = snapshot.config.hero_seat;
+    const newFly: typeof flyingChips = [];
+    for (const p of state.players) {
+      const prev = prevBetsRef.current[p.seat] ?? 0;
+      const cur = p.bet_this_street;
+      // Bet was just collected to the pot
+      if (prev > 0 && cur === 0) {
+        const offset = (p.seat - heroSeat + tableN) % tableN;
+        const pos = seatPositions[offset] ?? { x: 50, y: 50 };
+        newFly.push({
+          id: `${p.seat}-${snapshot.hand_no}-${state.street}-${Date.now()}`,
+          fromX: pos.x,
+          fromY: pos.y,
+          amount: prev,
+        });
+      }
+      prevBetsRef.current[p.seat] = cur;
+    }
+    if (newFly.length > 0) {
+      setFlyingChips((prev) => [...prev, ...newFly]);
+      const ids = new Set(newFly.map((f) => f.id));
+      window.setTimeout(() => {
+        setFlyingChips((prev) => prev.filter((f) => !ids.has(f.id)));
+      }, 720);
+    }
+  }, [state, snapshot.hand_no, snapshot.config.hero_seat]);
+
   if (!state) {
     return <div className="loading-screen">Đang tải bàn...</div>;
   }
@@ -259,6 +297,21 @@ export const Table: React.FC<Props> = ({ snapshot }) => {
               <span>{streetBanner}</span>
             </div>
           )}
+
+          {/* Phantom chips flying to the pot when the street ends. */}
+          {flyingChips.map((f) => (
+            <div
+              key={f.id}
+              className="chip-flyer"
+              style={{
+                ["--from-x" as never]: `${f.fromX}%`,
+                ["--from-y" as never]: `${f.fromY}%`,
+              }}
+            >
+              <div className="bet-chip" />
+              <div className="bet-amount">{f.amount.toLocaleString()}</div>
+            </div>
+          ))}
 
           {/* Seats around the oval */}
           {orderedSeats.map((p, i) => {
