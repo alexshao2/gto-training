@@ -21,17 +21,20 @@ function positionLabel(seat: number, btn: number, n: number): string {
   return `S${seat}`;
 }
 
+// Seat positions are tuned so seats don't overlap the central board area
+// (community cards at y≈40-52%, pot at y≈54-62%). Upper seats sit close to the
+// top corners; mid seats sit between the upper row and the hero row.
 const OVAL_POSITIONS: Record<number, { x: number; y: number }[]> = {
-  2: [{ x: 50, y: 80 }, { x: 50, y: 18 }],
-  3: [{ x: 50, y: 80 }, { x: 14, y: 35 }, { x: 86, y: 35 }],
-  4: [{ x: 50, y: 82 }, { x: 12, y: 50 }, { x: 50, y: 14 }, { x: 88, y: 50 }],
+  2: [{ x: 50, y: 88 }, { x: 50, y: 14 }],
+  3: [{ x: 50, y: 88 }, { x: 10, y: 28 }, { x: 90, y: 28 }],
+  4: [{ x: 50, y: 90 }, { x: 8, y: 48 }, { x: 50, y: 12 }, { x: 92, y: 48 }],
   5: [
-    { x: 50, y: 82 }, { x: 10, y: 58 }, { x: 28, y: 18 },
-    { x: 72, y: 18 }, { x: 90, y: 58 },
+    { x: 50, y: 90 }, { x: 7, y: 58 }, { x: 22, y: 14 },
+    { x: 78, y: 14 }, { x: 93, y: 58 },
   ],
   6: [
-    { x: 50, y: 84 }, { x: 12, y: 62 }, { x: 18, y: 22 },
-    { x: 50, y: 12 }, { x: 82, y: 22 }, { x: 88, y: 62 },
+    { x: 50, y: 88 }, { x: 7, y: 70 }, { x: 10, y: 22 },
+    { x: 50, y: 12 }, { x: 90, y: 22 }, { x: 93, y: 70 },
   ],
 };
 
@@ -264,10 +267,14 @@ export const Table: React.FC<Props> = ({ snapshot }) => {
             const isButton = state.button_seat === p.seat;
             const isWinner = winnerSeats.has(p.seat);
             const positionLabelStr = positionLabel(p.seat, state.button_seat, tableN);
+            // Anchor seat to nearest table edge so the seat-card never gets clipped.
+            // x < 30%: left-anchor, x > 70%: right-anchor, else center.
+            const sideClass =
+              pos.x < 30 ? " seat-wrap-left" : pos.x > 70 ? " seat-wrap-right" : "";
             return (
               <div
                 key={p.seat}
-                className="seat-wrap"
+                className={"seat-wrap" + sideClass}
                 style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               >
                 <PlayerSeat
