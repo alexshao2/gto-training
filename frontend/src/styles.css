@@ -824,33 +824,50 @@ input, select { font-family: inherit; }
    CARDS
    ========================================================= */
 
+/* Real-deck-inspired card face: rounded ivory background with crisp inner
+   border, glossy top highlight, large center suit, mirrored corner index. */
 .card {
-  border-radius: 6px;
-  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%);
+  border-radius: 7px;
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, #ffffff 0%, #f8fafc 60%, #e2e8f0 100%);
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 4px 4px;
-  font-family: var(--font-display);
-  font-weight: 700;
+  padding: 5px 5px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 800;
   box-shadow:
-    0 4px 10px rgba(0, 0, 0, 0.45),
-    0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 0 0 1px rgba(15, 23, 42, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    0 6px 14px rgba(0, 0, 0, 0.55),
+    0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(15, 23, 42, 0.18),
+    inset 0 0 0 2px rgba(255, 255, 255, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
   user-select: none;
+  overflow: hidden;
 }
 
-.card-lg { width: 56px; height: 80px; }
-.card-md { width: 44px; height: 62px; padding: 3px; }
-.card-sm { width: 32px; height: 46px; padding: 2px; border-radius: 4px; }
+.card::after {
+  /* glossy diagonal highlight — like a coated playing card */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 35%, rgba(0, 0, 0, 0.04) 100%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.card-lg { width: 58px; height: 82px; }
+.card-md { width: 46px; height: 64px; padding: 4px; border-radius: 6px; }
+.card-sm { width: 32px; height: 46px; padding: 3px; border-radius: 5px; }
 
 .card-corner {
   display: flex;
   flex-direction: column;
+  align-items: center;
   line-height: 1;
-  font-weight: 700;
+  font-weight: 800;
+  z-index: 2;
 }
 
 .card-corner-tl { align-items: flex-start; }
@@ -861,19 +878,21 @@ input, select { font-family: inherit; }
 }
 
 .card-rank {
-  font-family: var(--font-display);
-  font-size: 14px;
-  letter-spacing: 0.5px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 16px;
+  letter-spacing: -0.5px;
+  font-weight: 800;
+  line-height: 1;
 }
-.card-md .card-rank { font-size: 12px; }
+.card-md .card-rank { font-size: 13px; }
 .card-sm .card-rank { font-size: 10px; }
 
 .card-suit-small {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1;
-  margin-top: -1px;
+  margin-top: 0px;
 }
-.card-md .card-suit-small { font-size: 9px; }
+.card-md .card-suit-small { font-size: 10px; }
 .card-sm .card-suit-small { font-size: 8px; }
 
 .card-suit-center {
@@ -881,11 +900,15 @@ input, select { font-family: inherit; }
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 26px;
-  opacity: 0.95;
+  font-size: 32px;
+  line-height: 1;
+  z-index: 1;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5),
+    0 -1px 0 rgba(0, 0, 0, 0.08);
 }
-.card-md .card-suit-center { font-size: 20px; }
-.card-sm .card-suit-center { font-size: 14px; }
+.card-md .card-suit-center { font-size: 24px; }
+.card-sm .card-suit-center { font-size: 16px; }
 
 .card-back {
   background:
@@ -961,7 +984,7 @@ input, select { font-family: inherit; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   transform: translate(-50%, -50%);
   width: max-content;
 }
@@ -983,15 +1006,15 @@ input, select { font-family: inherit; }
 .seat-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px 5px 5px;
+  gap: 10px;
+  padding: 4px 14px 4px 4px;
   background: var(--glass-bg-strong);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   border-radius: 999px;
   box-shadow: var(--shadow-md);
-  min-width: 110px;
+  min-width: 116px;
   position: relative;
   transition: all 0.25s ease;
 }
@@ -1024,16 +1047,20 @@ input, select { font-family: inherit; }
 
 .seat-avatar {
   position: relative;
-  width: 38px;
-  height: 38px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  background: var(--bg-elev3);
-  border: 2px solid var(--glass-border-strong);
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.5);
+  font-size: 28px;
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.18), transparent 55%),
+    var(--bg-elev3);
+  border: 2px solid rgba(212, 175, 55, 0.45);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 4px 8px rgba(0, 0, 0, 0.5);
   flex-shrink: 0;
   animation: avatar-breathe 3.5s ease-in-out infinite;
 }
@@ -1079,14 +1106,12 @@ input, select { font-family: inherit; }
 }
 
 .seat-name {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-1);
   letter-spacing: 0.2px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
   white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .badge {
@@ -1098,42 +1123,81 @@ input, select { font-family: inherit; }
   letter-spacing: 0.5px;
 }
 
-.badge-btn {
+/* Position pill: small gold capsule under the player name */
+.pos-pill {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 7px;
+  border-radius: 999px;
   background: var(--grad-gold);
   color: #1a1206;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
-  border: 1px solid var(--gold-2);
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  font-weight: 800;
+  border: 1px solid var(--gold-4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+  align-self: flex-start;
 }
 
-.seat-pos {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--gold-3);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.seat-stack {
+/* Separate stack pill anchored below the seat-card. Subtle dark glass with
+   a gold inner border so it reads as a related but distinct piece of info. */
+.seat-stack-pill {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: baseline;
-  margin-top: 1px;
+  padding: 2px 12px;
+  border-radius: 999px;
+  background: rgba(3, 8, 31, 0.85);
+  border: 1px solid rgba(212, 175, 55, 0.30);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 2px 6px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
 }
 
 .stack-amt {
   font-family: var(--font-display);
   font-size: 14px;
   letter-spacing: 0.5px;
-  color: var(--text-1);
+  color: var(--gold-1);
   line-height: 1;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
 }
 
 .stack-bb {
   font-size: 9.5px;
-  font-weight: 600;
-  color: var(--text-4);
+  font-weight: 700;
+  color: var(--text-3);
   font-family: var(--font-mono);
+  letter-spacing: 0.3px;
+}
+
+/* Dealer button — actual round disc on the avatar corner */
+.dealer-button {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--grad-gold);
+  border: 1.5px solid var(--gold-4);
+  color: #1a1206;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 2px 4px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+  z-index: 5;
 }
 
 /* Active seat: timer ring */
