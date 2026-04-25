@@ -38,3 +38,5 @@ fly.toml.bak
 
 # fly.toml may contain secrets at deploy time; commit only the .example template
 backend/fly.toml
+bot/.env
+bot/fly.toml
