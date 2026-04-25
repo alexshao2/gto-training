@@ -151,6 +151,50 @@ export const Table: React.FC<Props> = ({ snapshot }) => {
     return new Set(state.winners.map((w) => w.seat));
   }, [state]);
 
+  // Street banner: flash a label whenever the street changes.
+  const [streetBanner, setStreetBanner] = useState<string | null>(null);
+  const lastStreetRef = useRef<string | null>(null);
+  const animatedBoardLenRef = useRef<number>(0);
+  const bannerTimerRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!state) {
+      lastStreetRef.current = null;
+      animatedBoardLenRef.current = 0;
+      return;
+    }
+    const cur = state.street;
+    const prev = lastStreetRef.current;
+    if (prev && prev !== cur) {
+      let label: string | null = null;
+      if (cur === "flop") label = "FLOP";
+      else if (cur === "turn") label = "TURN";
+      else if (cur === "river") label = "RIVER";
+      else if (cur === "showdown" || cur === "complete") label = "SHOWDOWN";
+      if (label) {
+        if (bannerTimerRef.current) window.clearTimeout(bannerTimerRef.current);
+        setStreetBanner(label);
+        sfx.cardFlip?.();
+        bannerTimerRef.current = window.setTimeout(() => setStreetBanner(null), 1400);
+      }
+    }
+    lastStreetRef.current = cur;
+  }, [state?.street]);
+
+  useEffect(() => {
+    return () => {
+      if (bannerTimerRef.current) window.clearTimeout(bannerTimerRef.current);
+    };
+  }, []);
+
+  // Determine which board card indexes are newly dealt this snapshot so we can
+  // stagger their entrance animation for a deal feel.
+  const boardLen = state?.board.length ?? 0;
+  const newCardStart = useMemo(() => {
+    const start = animatedBoardLenRef.current;
+    animatedBoardLenRef.current = boardLen;
+    return start;
+  }, [boardLen]);
+
   if (!state) {
     return <div className="loading-screen">Đang tải bàn...</div>;
   }
@@ -180,10 +224,21 @@ export const Table: React.FC<Props> = ({ snapshot }) => {
             <div className="board-cards">
               {Array.from({ length: 5 }).map((_, i) => {
                 const c = state.board[i];
-                return c ? (
-                  <PlayingCard key={i} card={c} size="md" />
-                ) : (
-                  <div key={`ph-${i}`} className="card card-md card-placeholder" />
+                if (!c) {
+                  return (
+                    <div key={`ph-${i}`} className="card card-md card-placeholder" />
+                  );
+                }
+                const isNew = i >= newCardStart;
+                const delay = isNew ? (i - newCardStart) * 0.16 : 0;
+                return (
+                  <div
+                    key={i}
+                    className={isNew ? "board-card-wrap card-deal-in" : "board-card-wrap"}
+                    style={isNew ? { animationDelay: `${delay}s` } : undefined}
+                  >
+                    <PlayingCard card={c} size="md" />
+                  </div>
                 );
               })}
             </div>
@@ -194,6 +249,13 @@ export const Table: React.FC<Props> = ({ snapshot }) => {
             </div>
             <div className="street-tag">{state.street.toUpperCase()}</div>
           </div>
+
+          {/* Street transition banner */}
+          {streetBanner && (
+            <div className="street-banner" key={streetBanner + boardLen}>
+              <span>{streetBanner}</span>
+            </div>
+          )}
 
           {/* Seats around the oval */}
           {orderedSeats.map((p, i) => {
