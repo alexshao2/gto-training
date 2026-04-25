@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useSession } from "../store/session";
 import type { CreateSessionRequest } from "../types/api";
 import { isVoiceEnabled, setVoiceEnabled } from "../utils/voice";
+import { Tutorial, hasSeenTutorial } from "./Tutorial";
 
 const DEFAULT_PROFILES = ["tag", "lag", "fish", "nit", "gto"];
 
@@ -21,9 +22,21 @@ export const Lobby: React.FC = () => {
   const [stack, setStack] = useState(10000);
   const [nPlayers, setNPlayers] = useState(6);
   const [picked, setPicked] = useState<string[]>(DEFAULT_PROFILES);
-  const [coachOn, setCoachOn] = useState(true);
-  const [llmOn, setLlmOn] = useState(true);
+  const [coachOn, setCoachOn] = useState<boolean>(() => {
+    try { return localStorage.getItem("gto_coach") !== "0"; } catch { return true; }
+  });
+  const [llmOn, setLlmOn] = useState<boolean>(() => {
+    try { return localStorage.getItem("gto_llm") !== "0"; } catch { return true; }
+  });
   const [voiceOn, setVoiceOn] = useState(isVoiceEnabled());
+
+  useEffect(() => {
+    try { localStorage.setItem("gto_coach", coachOn ? "1" : "0"); } catch { /* ignore */ }
+  }, [coachOn]);
+  useEffect(() => {
+    try { localStorage.setItem("gto_llm", llmOn ? "1" : "0"); } catch { /* ignore */ }
+  }, [llmOn]);
+  const [showTutorial, setShowTutorial] = useState<boolean>(() => !hasSeenTutorial());
 
   useEffect(() => {
     loadProfiles();
@@ -51,9 +64,17 @@ export const Lobby: React.FC = () => {
 
   return (
     <div className="lobby">
+      {showTutorial && <Tutorial onDismiss={() => setShowTutorial(false)} />}
       <header className="lobby-header">
         <h1>♠ Poker GTO Coach ♥</h1>
         <p>Train MTT 6-max với AI bots cấp độ thực + HLV GTO realtime</p>
+        <button
+          className="lobby-help"
+          onClick={() => setShowTutorial(true)}
+          title="Xem lại hướng dẫn"
+        >
+          ❓ Hướng dẫn
+        </button>
       </header>
 
       <section className="card-section">
