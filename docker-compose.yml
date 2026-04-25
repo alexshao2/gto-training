@@ -1,0 +1,69 @@
+# Local stack: backend (FastAPI) + frontend (nginx serving Vite build + reverse
+# proxy /api and /tg) + Telegram bot + Cloudflare Tunnel sidecar.
+#
+# Quick start:
+#   1. cp backend/.env.example backend/.env   # fill OPENAI_API_KEY etc.
+#   2. cp bot/.env.example bot/.env           # fill TELEGRAM_BOT_TOKEN, set
+#                                              PUBLIC_URL=https://<your-domain>/tg
+#   3. echo "TUNNEL_TOKEN=eyJh..." > .env     # token from CF Zero Trust
+#   4. In CF Zero Trust → Networks → Tunnels → your tunnel → Public Hostname:
+#        Hostname: <your-domain>          Service: http://frontend:80
+#   5. docker compose up -d --build
+#
+# Single public domain handles SPA, REST, WebSocket, and Telegram webhook.
+
+services:
+  backend:
+    build: ./backend
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      PORT: "8080"
+    expose:
+      - "8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2)"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    expose:
+      - "80"
+    depends_on:
+      - backend
+      - bot
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  bot:
+    build: ./bot
+    env_file:
+      - path: ./bot/.env
+        required: false
+    environment:
+      PORT: "8080"
+    expose:
+      - "8080"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    env_file:
+      - path: ./.env  # holds TUNNEL_TOKEN
+        required: false
+    depends_on:
+      - frontend
+    restart: unless-stopped

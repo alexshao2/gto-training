@@ -1,0 +1,13 @@
+__pycache__
+*.pyc
+*.pyo
+.venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+*.log
+.env
+.env.*
+!.env.example
+.git
+fly.toml
