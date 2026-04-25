@@ -13,9 +13,38 @@ from dataclasses import dataclass, field
 from ..bots.profiles import PROFILE_LABELS, decide
 from ..coach.coach import CoachFeedback, evaluate_action
 from ..coach.llm import enrich_feedback
+from ..coach.tts import kick_off_synthesis
 from ..poker.cards import hole_card_combo
 from ..poker.state import Action, ActionType, HandState, Player, Street
 from ..tournament.structure import STRUCTURES, _icm_recursive_closed
+
+
+def _short_speech_text(fb: CoachFeedback) -> str:
+    """Build the 1-2 sentence Vietnamese line spoken to the user.
+
+    Uses headline + first sentence of detail + optional correct_action so the
+    audio stays under ~10 seconds even on fast handraises.
+    """
+    parts: list[str] = []
+    if fb.headline:
+        parts.append(fb.headline.rstrip(".!?") + ".")
+    detail = (fb.detail or "").strip()
+    if detail:
+        # Take first sentence (split on . ! ? newline). Cap at 220 chars.
+        first = detail
+        for sep in (". ", "! ", "? ", "\n"):
+            if sep in first:
+                first = first.split(sep, 1)[0]
+                break
+        first = first.strip().rstrip(".!?")
+        if first and first not in (fb.headline or ""):
+            parts.append(first[:220] + ".")
+    if fb.correct_action:
+        size = (
+            f" cỡ {fb.correct_size_bb:g}bb" if fb.correct_size_bb is not None else ""
+        )
+        parts.append(f"GTO line là {fb.correct_action}{size}.")
+    return " ".join(parts).strip()
 
 
 @dataclass
@@ -165,6 +194,12 @@ class TournamentSession:
         coach_fb: CoachFeedback | None = None
         if self.config.coach_enabled:
             coach_fb = evaluate_action(self.state, hero_seat_local, action)
+            # Kick off TTS for the short, instant feedback BEFORE awaiting LLM.
+            # This way the TTS call (1-3s) overlaps with the LLM call (5-15s) and
+            # the audio is typically ready by the time the response is sent.
+            tts_task = asyncio.create_task(
+                kick_off_synthesis(_short_speech_text(coach_fb))
+            )
             if self.config.coach_llm_enabled and coach_fb.is_mistake:
                 hero = self.state.players[hero_seat_local]
                 coach_fb = await enrich_feedback(
@@ -172,6 +207,12 @@ class TournamentSession:
                     state_summary=self._coach_summary(hero_seat_local),
                     hero_combo=hole_card_combo(*hero.cards),
                 )
+            try:
+                audio_id = await tts_task
+            except Exception:  # noqa: BLE001 - TTS is best-effort
+                audio_id = None
+            if audio_id:
+                coach_fb.audio_url = f"/api/tts/{audio_id}"
             self.last_coach = coach_fb
             self._emit("coach", coach_fb.to_dict())
 

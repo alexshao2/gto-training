@@ -1,5 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { CoachFeedback } from "../types/api";
+import {
+  isPlaying,
+  isVoiceEnabled,
+  onPlayingChange,
+  playFromUrl,
+  speakText,
+  stop as stopVoice,
+} from "../utils/voice";
 
 interface Props {
   feedback: CoachFeedback | null | undefined;
@@ -23,10 +31,22 @@ const SEV_LABEL_VI: Record<string, string> = {
 
 export const CoachToast: React.FC<Props> = ({ feedback, visible, onClose }) => {
   const [expanded, setExpanded] = useState(false);
+  const [playing, setPlaying] = useState(isPlaying());
+  const lastSpokenUrl = useRef<string | null>(null);
+
+  useEffect(() => onPlayingChange(setPlaying), []);
 
   useEffect(() => {
     if (!visible) setExpanded(false);
   }, [visible]);
+
+  // Auto-play whenever a NEW feedback arrives with an audio_url.
+  useEffect(() => {
+    if (!visible || !feedback?.audio_url) return;
+    if (lastSpokenUrl.current === feedback.audio_url) return;
+    lastSpokenUrl.current = feedback.audio_url;
+    void playFromUrl(feedback.audio_url);
+  }, [visible, feedback?.audio_url]);
 
   if (!feedback || !visible) return null;
   const sev = feedback.severity ?? "minor";
@@ -38,6 +58,23 @@ export const CoachToast: React.FC<Props> = ({ feedback, visible, onClose }) => {
       : sev === "minor"
       ? "coach-minor"
       : "coach-ok";
+
+  const voiceOn = isVoiceEnabled();
+  const hasAudio = !!feedback.audio_url;
+
+  const toggleAudio = () => {
+    if (playing) {
+      stopVoice();
+      return;
+    }
+    if (feedback.audio_url) {
+      void playFromUrl(feedback.audio_url);
+    }
+  };
+
+  const speakDetail = () => {
+    if (feedback.detail) void speakText(feedback.detail);
+  };
 
   return (
     <div className={`coach-toast ${sevClass}`} role="alert">
@@ -58,6 +95,16 @@ export const CoachToast: React.FC<Props> = ({ feedback, visible, onClose }) => {
             </div>
           )}
         </div>
+        {voiceOn && hasAudio && (
+          <button
+            className={`coach-toast-voice ${playing ? "playing" : ""}`}
+            onClick={toggleAudio}
+            title={playing ? "Tạm dừng" : "Nghe lại"}
+            aria-label={playing ? "Pause voice" : "Play voice"}
+          >
+            {playing ? "⏸" : "🔊"}
+          </button>
+        )}
         <button className="coach-toast-close" onClick={onClose} title="Đóng" aria-label="Close">
           ✕
         </button>
@@ -67,6 +114,11 @@ export const CoachToast: React.FC<Props> = ({ feedback, visible, onClose }) => {
           {feedback.detail.split("\n").map((line, i) => (
             <p key={i}>{line}</p>
           ))}
+          {voiceOn && (
+            <button className="coach-toast-detail-voice" onClick={speakDetail}>
+              🔊 Đọc giải thích chi tiết
+            </button>
+          )}
         </div>
       ) : (
         <button className="coach-toast-expand" onClick={() => setExpanded(true)}>
