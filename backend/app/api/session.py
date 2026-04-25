@@ -249,8 +249,11 @@ class TournamentSession:
             return Action(ActionType.RAISE, amount=target)
         raise ValueError(f"Unknown action {action_type}")
 
-    def _bot_think_seconds(self, action: Action, legal: dict) -> float:
-        """Variable thinking time so bots feel human, not instant."""
+    def _bot_think_seconds(self, action: Action, legal: dict, profile: str = "tag") -> float:
+        """Variable thinking time so bots feel human, not instant.
+
+        Each profile has a different base tempo: NIT/ROCK think slowly, MANIAC
+        snaps everything, GTO solver-bot is steady and consistent."""
         base = 0.6
         atype = action.type
         # Snap-fold to small bets
@@ -267,7 +270,18 @@ class TournamentSession:
         # Big decisions slow down
         if self.state and self.state.pot > self.state.big_blind * 30:
             base *= 1.3
-        return min(base, 3.5)
+        # Profile-aware tempo multiplier
+        profile_mult = {
+            "nit": 1.35,    # tank-fold, double-check
+            "rock": 1.25,   # passive but slow
+            "tag": 1.0,
+            "gto": 1.0,     # consistent solver tempo
+            "lag": 0.85,
+            "fish": 0.90,   # snap-call, no thought
+            "maniac": 0.55, # jam-monkey, fast
+        }
+        base *= profile_mult.get(profile, 1.0)
+        return max(0.35, min(base, 3.8))
 
     def _street_transition_delay(self, new_street: Street) -> float:
         """Pause after dealing flop/turn/river so the user can see the cards land
@@ -296,7 +310,7 @@ class TournamentSession:
             return False
         legal = self.state.legal_actions(seat)
         action = decide(self.state, seat, player.profile, self.rng)
-        await asyncio.sleep(self._bot_think_seconds(action, legal))
+        await asyncio.sleep(self._bot_think_seconds(action, legal, player.profile))
         pre_street = self.state.street
         try:
             self.state.apply_action(seat, action)
