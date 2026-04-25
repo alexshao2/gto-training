@@ -92,7 +92,92 @@ Cấu hình API base qua biến môi trường Vite:
 VITE_API_BASE=https://poker-gto-coach.fly.dev npm run build
 ```
 
-## Deploy
+## Self-host local + Cloudflare Tunnel
+
+Chạy toàn bộ stack (backend + frontend + bot Telegram) trên máy local và public ra internet qua **một Cloudflare Tunnel duy nhất** — không cần domain riêng cho từng service, không cần CORS config.
+
+### Kiến trúc
+
+```
+Internet ─▶ Cloudflare ─▶ cloudflared (sidecar) ─┐
+                                                  ▼
+                                            ┌────────────┐
+                                            │  frontend  │  ← nginx serve SPA + reverse proxy
+                                            └─────┬──────┘
+                                                  │
+                          /api, /api/ws    ┌──────┴──────┐    /tg/webhook/<secret>
+                                  ▼        │             │             ▼
+                           ┌──────────┐    │             │    ┌──────────────┐
+                           │ backend  │    │             │    │   bot (TG)   │
+                           │ FastAPI  │    │             │    │  webhook app │
+                           └──────────┘    │             │    └──────────────┘
+                                            └─────────────┘
+```
+
+Một domain phục vụ tất cả: SPA, REST `/api`, WebSocket `/api/ws/*`, Telegram webhook `/tg/webhook/<secret>`.
+
+### Yêu cầu
+
+- Docker + Docker Compose v2.
+- Cloudflare Zero Trust account (free tier OK), 1 domain đã add vào Cloudflare.
+- Cloudflare Tunnel **token** (dạng `eyJh…` rất dài).
+
+### Bước 1 — Setup Cloudflare Tunnel
+
+1. Vào [Cloudflare Zero Trust dashboard](https://one.dash.cloudflare.com/) → **Networks → Tunnels** → **Create a tunnel** → **Cloudflared**.
+2. Đặt tên (vd `poker-gto-coach`), chọn **Save tunnel**, ở bước "Install connector" copy token (đoạn dài sau `--token`). Token sẽ là `TUNNEL_TOKEN` ở bước 2.
+3. Tab **Public Hostnames** → **Add a public hostname**:
+   - Subdomain + Domain: ví dụ `poker.your-domain.com`.
+   - Service: `HTTP`, URL: `frontend:80` (chính là tên container nginx — cloudflared chạy cùng docker network nên resolve được).
+   - Save hostname.
+
+### Bước 2 — Tạo các file `.env`
+
+```bash
+cp backend/.env.example backend/.env
+# điền OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL, TTS_MODEL, ...
+
+cp bot/.env.example bot/.env
+# - TELEGRAM_BOT_TOKEN  (từ @BotFather)
+# - WEBAPP_URL=https://poker.your-domain.com/        ← URL public của bạn
+# - PUBLIC_URL=https://poker.your-domain.com/tg      ← chú ý hậu tố `/tg`
+# - WEBHOOK_SECRET=<random-string>
+
+cp .env.example .env
+# - TUNNEL_TOKEN=eyJh...   (token bước 1)
+```
+
+### Bước 3 — Chạy
+
+```bash
+docker compose up -d --build
+```
+
+Đợi vài giây rồi kiểm tra:
+
+```bash
+curl https://poker.your-domain.com/api/profiles      # JSON danh sách bot profiles
+curl https://poker.your-domain.com/                  # SPA index.html
+docker compose logs -f cloudflared                   # xem connector status
+docker compose logs -f bot                           # bot phải log "Webhook set to https://poker.../tg/webhook/<secret>"
+```
+
+Mở https://poker.your-domain.com/ trên trình duyệt → MiniApp lên. Hoặc vào @BotFather → `/setmenubutton` → trỏ vào WEBAPP_URL.
+
+### Bước 4 — Cập nhật
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+### Lưu ý
+
+- `frontend` được build với `VITE_API_BASE=""` để dùng same-origin paths → KHÔNG cần config CORS riêng.
+- Chỉ cloudflared mở ra internet — backend, bot, và nginx đều `expose:` chứ không `ports:` → các service nội bộ KHÔNG bị publish ra interface công cộng.
+- Webhook bot dùng path prefix `/tg` để chia sẻ cùng domain với SPA và `/api`. Nếu bạn muốn 2 domain riêng (`bot.your-domain.com` cho Telegram), thêm 1 Public Hostname nữa trong CF Tunnel trỏ thẳng vào `bot:8080`, đổi `PUBLIC_URL=https://bot.your-domain.com` và bỏ phần `/tg/` proxy trong `frontend/nginx.conf`.
+
+## Deploy (legacy, Fly.io + Vercel)
 
 ### Backend → Fly.io
 
