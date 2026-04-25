@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import type { Action, LegalActions } from "../types/api";
 import { hapticImpact } from "../utils/telegram";
+import { sfx } from "../utils/sound";
 
 interface Props {
   legal: LegalActions;
@@ -10,11 +11,22 @@ interface Props {
 }
 
 const PRESETS: { label: string; mult: number }[] = [
-  { label: "1/3 pot", mult: 0.33 },
-  { label: "1/2 pot", mult: 0.5 },
-  { label: "2/3 pot", mult: 0.66 },
+  { label: "1/3", mult: 0.33 },
+  { label: "1/2", mult: 0.5 },
+  { label: "2/3", mult: 0.66 },
   { label: "Pot", mult: 1.0 },
 ];
+
+function playActionSfx(a: Action) {
+  switch (a) {
+    case "fold": sfx.fold(); break;
+    case "check": sfx.check(); break;
+    case "call": sfx.chipSlide(); break;
+    case "bet":
+    case "raise": sfx.raise(); break;
+    case "all_in": sfx.allIn(); break;
+  }
+}
 
 export const ActionBar: React.FC<Props> = ({ legal, bigBlind, onAction, disabled }) => {
   const canRaise = legal.actions.includes("raise") || legal.actions.includes("bet");
@@ -26,12 +38,18 @@ export const ActionBar: React.FC<Props> = ({ legal, bigBlind, onAction, disabled
 
   const submit = (a: Action, amount?: number) => {
     hapticImpact("medium");
+    playActionSfx(a);
     onAction(a, amount);
   };
 
   const presetAmount = (mult: number): number => {
     const target = legal.current_bet + Math.round(legal.pot * mult);
     return Math.min(legal.max_raise_to, Math.max(legal.min_raise_to, target));
+  };
+
+  const setPreset = (amt: number) => {
+    sfx.chipClink();
+    setRaiseAmount(amt);
   };
 
   return (
@@ -76,7 +94,7 @@ export const ActionBar: React.FC<Props> = ({ legal, bigBlind, onAction, disabled
               )
             }
           >
-            {legal.actions.includes("raise") ? "Raise" : "Bet"} to {raiseAmount.toLocaleString()}
+            {legal.actions.includes("raise") ? "Raise" : "Bet"} {raiseAmount.toLocaleString()}
             <span className="btn-sub">{(raiseAmount / Math.max(bigBlind, 1)).toFixed(1)}bb</span>
           </button>
         )}
@@ -89,17 +107,19 @@ export const ActionBar: React.FC<Props> = ({ legal, bigBlind, onAction, disabled
                 key={p.label}
                 className="preset"
                 disabled={disabled}
-                onClick={() => setRaiseAmount(presetAmount(p.mult))}
+                onClick={() => setPreset(presetAmount(p.mult))}
+                title={`${p.label} pot`}
               >
                 {p.label}
               </button>
             ))}
             <button
-              className="preset"
+              className="preset preset-allin"
               disabled={disabled}
-              onClick={() => setRaiseAmount(legal.max_raise_to)}
+              onClick={() => setPreset(legal.max_raise_to)}
+              title="All-in"
             >
-              All-in
+              JAM
             </button>
           </div>
           <input

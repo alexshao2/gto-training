@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import type { PlayerPublic } from "../types/api";
 import { PlayingCard } from "./Card";
 
@@ -32,9 +32,43 @@ const PROFILE_AVATAR: Record<string, string> = {
   gto: "🤖",
 };
 
+const CONFETTI_COLORS = ["#fbbf24", "#10b981", "#f87171", "#60a5fa", "#a78bfa", "#fde58a"];
+
 function avatarFor(p: PlayerPublic): string {
   if (p.is_human) return PROFILE_AVATAR.human;
   return PROFILE_AVATAR[p.profile] ?? "🎭";
+}
+
+function Confetti() {
+  // Pre-compute particles once per mount
+  const particles = useMemo(() => {
+    return Array.from({ length: 18 }).map((_, i) => {
+      const angle = (i / 18) * Math.PI * 2 + Math.random() * 0.4;
+      const distance = 60 + Math.random() * 60;
+      const tx = Math.cos(angle) * distance;
+      const ty = Math.sin(angle) * distance - 20; // slight upward bias
+      const rot = (Math.random() * 720 - 360).toFixed(0) + "deg";
+      const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+      const delay = (Math.random() * 0.15).toFixed(2) + "s";
+      return { tx, ty, rot, color, delay };
+    });
+  }, []);
+  return (
+    <div className="confetti">
+      {particles.map((p, i) => (
+        <span
+          key={i}
+          style={{
+            background: p.color,
+            ["--tx" as never]: `${p.tx}px`,
+            ["--ty" as never]: `${p.ty}px`,
+            ["--rot" as never]: p.rot,
+            animationDelay: p.delay,
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 export const PlayerSeat: React.FC<Props> = ({
@@ -80,7 +114,16 @@ export const PlayerSeat: React.FC<Props> = ({
       ) : null}
 
       <div className="seat-card">
-        <div className="seat-avatar">{avatarFor(player)}</div>
+        <div className="seat-avatar">
+          {avatarFor(player)}
+          {isToAct && !player.folded && (
+            <div className="timer-ring">
+              <svg viewBox="0 0 50 50">
+                <circle cx="25" cy="25" r="22" />
+              </svg>
+            </div>
+          )}
+        </div>
         <div className="seat-info">
           <div className="seat-name">
             {player.name}
@@ -121,7 +164,10 @@ export const PlayerSeat: React.FC<Props> = ({
       )}
 
       {isWinner && (
-        <div className="seat-winner-badge">WINNER 🏆</div>
+        <>
+          <Confetti />
+          <div className="seat-winner-badge">WINNER 🏆</div>
+        </>
       )}
     </div>
   );
